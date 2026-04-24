@@ -68,8 +68,8 @@ export default function App() {
     });
 
     // Correlation factor (0 = all traits perfectly correlated, 1 = perfectly independent)
-    // We use a progressive dampening formula to ensure symmetry and realistic convergence
-    const alpha = 0.35; 
+    // Lowered to 0.12 to reflect that global privileges are extremely clustered in the same ~100-200m people.
+    const alpha = 0.12; 
     
     const calculateFunnel = (f: number[]) => {
       if (f.length === 0) return 100;
@@ -272,21 +272,21 @@ export default function App() {
                 animate={{ scale: 1, opacity: 1 }}
                 className={`${stats.rarity < 0.0001 ? 'text-3xl md:text-5xl' : stats.rarity < 0.01 ? 'text-5xl md:text-7xl' : 'text-6xl md:text-8xl'} font-black leading-none text-white tracking-tighter drop-shadow-2xl text-center`}
               >
-                {stats.rarity < 0.0001 
-                  ? stats.rarity.toExponential(2) 
-                  : stats.rarity < 0.1 
-                    ? stats.rarity.toFixed(4) 
+                {stats.rarity < 0.001 
+                  ? stats.rarity.toFixed(5) 
+                  : stats.rarity < 1 
+                    ? stats.rarity.toFixed(3) 
                     : stats.rarity.toFixed(2)
                 }<span className="text-xl md:text-3xl text-indigo-400 ml-1">%</span>
               </motion.div>
               {Object.keys(answers).length > 0 && (
-                <div className="flex flex-col items-center mt-6 w-full">
+                <div className="flex flex-col items-center mt-6 w-full px-4">
                   <div className="text-slate-500 text-[9px] uppercase font-mono tracking-widest mb-1 opacity-50">Volume Mondial Résiduel</div>
-                  <p className="text-white text-center text-3xl md:text-4xl font-bold tracking-tighter uppercase font-mono">
+                  <p className="text-white text-center text-3xl md:text-4xl font-bold tracking-tighter uppercase font-mono break-all">
                     ~ {formatPopulation(stats.rarity)}
                   </p>
                   <div className="mt-4 px-4 py-2 bg-indigo-500 text-white text-[10px] font-bold uppercase tracking-widest rounded-full shadow-lg border border-indigo-400/20">
-                    {stats.rarity < 0.000001 ? "PROFIL UNIQUE" : `TOP ${stats.rarity < 0.01 ? stats.rarity.toFixed(5) : stats.rarity.toFixed(2)}%`}
+                    {stats.rarity < 0.001 ? "PROFIL EXTRÊMENT RARE" : `TOP ${stats.rarity < 1 ? stats.rarity.toFixed(3) : stats.rarity.toFixed(2)}%`}
                   </div>
                   {stats.rarity > 0 && (
                     <div className="mt-3 text-[10px] text-slate-500 font-mono italic">
