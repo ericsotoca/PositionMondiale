@@ -67,19 +67,20 @@ export default function App() {
       }
     });
 
-    // Correlation factor (0 = full correlation, 1 = total independence)
-    // alpha = 0.45 is a balanced value for world data clustering
-    const alpha = 0.45; 
+    // Correlation factor (0 = full redundancy, 1 = total independence)
+    // alpha = 0.5 is a balanced clustering factor for global population stats.
+    const alpha = 0.5; 
     
     const calculateFunnel = (f: number[]) => {
       if (f.length === 0) return 100;
       
-      // Fixed base of 1.0 (100%) to ensure it can only decrease
       let prob = 1.0;
+      // Filter factors to only process those that are actual reductions (< 1)
+      const meaningfulFactors = f.filter(v => v < 1);
       
-      // Every factor reduces the population, damped by alpha
-      for (let i = 0; i < f.length; i++) {
-        prob *= Math.pow(f[i], alpha);
+      for (const factor of meaningfulFactors) {
+        // Since factor <= 1 and alpha > 0, factor^alpha is always <= 1.
+        prob *= Math.pow(factor, alpha);
       }
       
       return Math.max(prob * 100, 0.000000001);
