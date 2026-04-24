@@ -48,7 +48,11 @@ export default function App() {
 
   // Calculate scores using a Cumulative Reduction Model (Funnel)
   const stats = useMemo(() => {
-    const answeredEntries = Object.entries(answers);
+    const answeredEntries = Object.entries(answers).sort((a, b) => {
+      const indexA = questions.findIndex(q => q.id === a[0]);
+      const indexB = questions.findIndex(q => q.id === b[0]);
+      return indexA - indexB;
+    });
     const totalAnswered = answeredEntries.length;
     
     if (totalAnswered === 0) return { rarity: 100, prevRarity: 100, vital: 100, social: 100, material: 100 };
@@ -68,18 +72,22 @@ export default function App() {
     });
 
     // Correlation factor (0 = full redundancy, 1 = total independence)
-    // alpha = 0.5 is a balanced clustering factor for global population stats.
-    const alpha = 0.5; 
+    // alpha = 0.6 acknowledges that human traits are not independent but clustered.
+    // Every new answer reduces the population, but with a damping effect to account for correlations.
+    const alpha = 0.6; 
     
     const calculateFunnel = (f: number[]) => {
       if (f.length === 0) return 100;
       
+      // Strict monotonic reduction
+      // Using a model where each new filter is damped: P_new = P_old * (Factor ^ alpha)
       let prob = 1.0;
-      // Filter factors to only process those that are actual reductions (< 1)
-      const meaningfulFactors = f.filter(v => v < 1);
+      
+      // To ensure monotonicity, we sort factors so the most restrictive ones are applied first
+      // and won't be "undone" by ordering.
+      const meaningfulFactors = [...f].filter(v => v < 1).sort((a, b) => a - b);
       
       for (const factor of meaningfulFactors) {
-        // Since factor <= 1 and alpha > 0, factor^alpha is always <= 1.
         prob *= Math.pow(factor, alpha);
       }
       
