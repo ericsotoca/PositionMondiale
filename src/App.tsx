@@ -49,9 +49,9 @@ export default function App() {
   // Calculate scores using a Cumulative Reduction Model (Funnel)
   const stats = useMemo(() => {
     const answeredEntries = Object.entries(answers);
-    const totalQuestions = answeredEntries.length;
+    const totalAnswered = answeredEntries.length;
     
-    if (totalQuestions === 0) return { rarity: 100, prevRarity: 100, vital: 100, social: 100, material: 100 };
+    if (totalAnswered === 0) return { rarity: 100, prevRarity: 100, vital: 100, social: 100, material: 100 };
 
     let categories = { Vital: [] as number[], Social: [] as number[], Material: [] as number[] };
     let factors: number[] = [];
@@ -59,24 +59,31 @@ export default function App() {
     answeredEntries.forEach(([qid, percentage]) => {
       const q = questions.find(q => q.id === qid);
       if (q) {
-        categories[q.category as keyof typeof categories].push(percentage as number);
+        const catKey = q.category as keyof typeof categories;
+        if (categories[catKey]) {
+          categories[catKey].push(percentage as number);
+        }
         factors.push(percentage / 100);
       }
     });
 
-    const alpha = 0.20;
+    // Correlation factor (0 = all traits perfectly correlated, 1 = perfectly independent)
+    // We use a progressive dampening formula to ensure symmetry and realistic convergence
+    const alpha = 0.35; 
     
-    const calculateRarity = (f: number[]) => {
+    const calculateFunnel = (f: number[]) => {
       if (f.length === 0) return 100;
-      let prob = f[0];
-      for (let i = 1; i < f.length; i++) {
-        prob *= Math.pow(f[i], alpha);
-      }
-      return Math.max(prob * 100, 0.0000001);
+      const n = f.length;
+      // beta converges from 1 (independent) towards alpha as n grows
+      const beta = (1 + (n - 1) * alpha) / n;
+      
+      const product = f.reduce((acc, val) => acc * val, 1);
+      return Math.max(Math.pow(product, beta) * 100, 0.000000001);
     };
 
-    const finalRarity = calculateRarity(factors);
-    const prevRarity = calculateRarity(factors.slice(0, -1));
+    const finalRarity = calculateFunnel(factors);
+    // Prev rarity for the "people excluded" animation/stat
+    const prevRarity = calculateFunnel(factors.slice(0, -1));
 
     const getCatAvg = (arr: number[]) => arr.length > 0 ? arr.reduce((a, b) => a + b, 0) / arr.length : 100;
 
@@ -258,32 +265,43 @@ export default function App() {
               Population Résiduelle (%)
             </div>
             
-            <div className="flex flex-col items-center w-full">
+                <div className="flex flex-col items-center w-full">
               <motion.div 
                 key={stats.rarity}
                 initial={{ scale: 0.9, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
-                className={`${stats.rarity < 0.001 ? 'text-4xl md:text-6xl' : 'text-6xl md:text-8xl'} font-black leading-none text-white tracking-tighter drop-shadow-2xl text-center`}
+                className={`${stats.rarity < 0.0001 ? 'text-3xl md:text-5xl' : stats.rarity < 0.01 ? 'text-5xl md:text-7xl' : 'text-6xl md:text-8xl'} font-black leading-none text-white tracking-tighter drop-shadow-2xl text-center`}
               >
-                {stats.rarity < 0.01 ? stats.rarity.toFixed(5) : stats.rarity.toFixed(2)}<span className="text-2xl md:text-4xl text-indigo-400">%</span>
+                {stats.rarity < 0.0001 
+                  ? stats.rarity.toExponential(2) 
+                  : stats.rarity < 0.1 
+                    ? stats.rarity.toFixed(4) 
+                    : stats.rarity.toFixed(2)
+                }<span className="text-xl md:text-3xl text-indigo-400 ml-1">%</span>
               </motion.div>
               {Object.keys(answers).length > 0 && (
                 <div className="flex flex-col items-center mt-6 w-full">
-                  <div className="text-slate-500 text-[10px] uppercase font-mono tracking-widest mb-1 opacity-50">Co-habitants estimés</div>
-                  <p className="text-white text-center text-4xl font-bold tracking-tighter">
-                    {formatPopulation(stats.rarity)}
+                  <div className="text-slate-500 text-[9px] uppercase font-mono tracking-widest mb-1 opacity-50">Volume Mondial Résiduel</div>
+                  <p className="text-white text-center text-3xl md:text-4xl font-bold tracking-tighter uppercase font-mono">
+                    ~ {formatPopulation(stats.rarity)}
                   </p>
-                  <div className="mt-4 px-4 py-2 bg-white text-black text-[10px] font-bold uppercase tracking-widest rounded-full shadow-xl">
-                    TOP {stats.rarity < 0.01 ? stats.rarity.toFixed(4) : stats.rarity.toFixed(2)}% MONDIAL
+                  <div className="mt-4 px-4 py-2 bg-indigo-500 text-white text-[10px] font-bold uppercase tracking-widest rounded-full shadow-lg border border-indigo-400/20">
+                    {stats.rarity < 0.000001 ? "PROFIL UNIQUE" : `TOP ${stats.rarity < 0.01 ? stats.rarity.toFixed(5) : stats.rarity.toFixed(2)}%`}
                   </div>
+                  {stats.rarity > 0 && (
+                    <div className="mt-3 text-[10px] text-slate-500 font-mono italic">
+                      1 personne sur {Math.round(100 / stats.rarity).toLocaleString()}
+                    </div>
+                  )}
                   {peopleExcluded > 0 && step === 'quiz' && (
                     <motion.div 
                       key={peopleExcluded}
                       initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 0.6, y: 0 }}
-                      className="mt-6 text-rose-400 font-mono text-[9px] uppercase tracking-tighter"
+                      animate={{ opacity: 0.8, y: 0 }}
+                      className="mt-6 text-rose-500 font-mono text-[9px] uppercase tracking-tighter flex items-center gap-1"
                     >
-                      - {peopleExcluded.toLocaleString()} personnes exclues au dernier filtre
+                      <span>- {peopleExcluded.toLocaleString()}</span>
+                      <span className="opacity-40">exclues par ce critère</span>
                     </motion.div>
                   )}
                 </div>
