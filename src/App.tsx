@@ -67,18 +67,22 @@ export default function App() {
       }
     });
 
-    // Correlation factor (0 = all traits perfectly correlated, 1 = perfectly independent)
-    // Lowered to 0.12 to reflect that global privileges are extremely clustered in the same ~100-200m people.
-    const alpha = 0.12; 
+    // Correlation factor (0 = full correlation, 1 = total independence)
+    // alpha = 0.45 is a balanced value for world data clustering
+    const alpha = 0.45; 
     
     const calculateFunnel = (f: number[]) => {
       if (f.length === 0) return 100;
-      const n = f.length;
-      // beta converges from 1 (independent) towards alpha as n grows
-      const beta = (1 + (n - 1) * alpha) / n;
       
-      const product = f.reduce((acc, val) => acc * val, 1);
-      return Math.max(Math.pow(product, beta) * 100, 0.000000001);
+      // Fixed base of 1.0 (100%) to ensure it can only decrease
+      let prob = 1.0;
+      
+      // Every factor reduces the population, damped by alpha
+      for (let i = 0; i < f.length; i++) {
+        prob *= Math.pow(f[i], alpha);
+      }
+      
+      return Math.max(prob * 100, 0.000000001);
     };
 
     const finalRarity = calculateFunnel(factors);
