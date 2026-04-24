@@ -72,30 +72,30 @@ export default function App() {
     });
 
     // Correlation factor (0 = full redundancy, 1 = total independence)
-    // alpha = 0.6 acknowledges that human traits are not independent but clustered.
-    // Every new answer reduces the population, but with a damping effect to account for correlations.
-    const alpha = 0.6; 
+    // alpha = 0.5 is a robust clustering factor. 
+    // Human traits overlap (e.g., if you have a degree, you are more likely to be literate).
+    const alpha = 0.5; 
     
     const calculateFunnel = (f: number[]) => {
       if (f.length === 0) return 100;
       
-      // Strict monotonic reduction
-      // Using a model where each new filter is damped: P_new = P_old * (Factor ^ alpha)
+      // Cumulative product model: P = P_0 * factor1^alpha * factor2^alpha ...
+      // This is mathematically proven to be monotonic for factors <= 1.
       let prob = 1.0;
-      
-      // To ensure monotonicity, we sort factors so the most restrictive ones are applied first
-      // and won't be "undone" by ordering.
-      const meaningfulFactors = [...f].filter(v => v < 1).sort((a, b) => a - b);
-      
-      for (const factor of meaningfulFactors) {
-        prob *= Math.pow(factor, alpha);
+      for (const factor of f) {
+        // Only apply damping to factors that actually filter ( < 100%)
+        if (factor < 1) {
+          prob *= Math.pow(factor, alpha);
+        }
       }
-      
       return Math.max(prob * 100, 0.000000001);
     };
 
+    // Calculate current rarity based on ALL current answers
     const finalRarity = calculateFunnel(factors);
-    // Prev rarity for the "people excluded" animation/stat
+    
+    // Calculate previous rarity (one less answer) to show the reduction
+    // We use the factors in order of answering to be consistent
     const prevRarity = calculateFunnel(factors.slice(0, -1));
 
     const getCatAvg = (arr: number[]) => arr.length > 0 ? arr.reduce((a, b) => a + b, 0) / arr.length : 100;
